@@ -3,6 +3,7 @@ import mimetypes
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
@@ -17,7 +18,20 @@ except FileExistsError:
 except Exception as e:
     print (f"error:{e}")
     
-    
+
+# creating the database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+db = SQLAlchemy(app)
+
+class UploadedFile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    saved_name = db.Column(db.String(100), nullable=False)
+    original_name = db.Column(db.String(100), nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    upload_time = db.Column(db.DateTime, default= datetime.utcnow)
+
+
     
 ALLOWED_MIMES = {"image/png", "image/jpeg"}
 @app.route("/")
@@ -33,7 +47,7 @@ def upload_check():
         if 'file' not in request.files:
             return make_response(jsonify({ "error": "file_missing", 
                     "message": "Please upload a file (field name: file)." 
-                    },404))
+                    },400))
 
         else:
             uploaded_file = request.files['file']   
@@ -73,6 +87,17 @@ def upload_check():
                 try:
                     save_path = os.path.join(FOLDER_NAME,final_name)
                     uploaded_file.save(save_path)
+                    
+                    record = UploadedFile(
+                        saved_name=final_name,
+                        original_name=uploaded_file.filename,
+                        mimetype=mime,
+                        size=file_size
+                    )
+                    
+                    db.session.add(record)
+                    db.session.commit()
+                    
                     return jsonify({
                         "message": "file_uploaded",
                         "file": {
@@ -80,7 +105,7 @@ def upload_check():
                             "original_name": uploaded_file.filename,
                             "mimetype": mime,
                             "size": file_size,
-                            "url": f"/{FOLDER_NAME}/{final_name}"
+                            "url": f"/files/{record.id}/raw"
                         }
                     }), 201
                 except Exception as e:
@@ -90,18 +115,12 @@ def upload_check():
 
         
                 
-                    
-                
-        
-    
-        
-        
-        
-
-        
-        
         
 
 if __name__ == "__main__":
+    
+    with app.app_context():
+        db.create_all()
+        
     app.run(debug=True)
 

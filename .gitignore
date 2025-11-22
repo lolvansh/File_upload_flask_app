@@ -1,3 +1,10 @@
 .vscode
 .vscode/
 /vscode
+
+uploads
+/uploads
+
+/instance
+instance
+database.db
