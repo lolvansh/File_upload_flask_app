@@ -1,4 +1,4 @@
-from flask import Flask,request,jsonify,make_response
+from flask import Flask,request,jsonify,make_response,send_from_directory
 import mimetypes
 from werkzeug.utils import secure_filename
 import os
@@ -41,8 +41,6 @@ def hello():
 
 @app.route("/upload",methods=["POST","GET"])
 def upload_check():
-    
-     
     if request.method == "POST":
         if 'file' not in request.files:
             return make_response(jsonify({ "error": "file_missing", 
@@ -113,7 +111,26 @@ def upload_check():
                                                   "message":f"An error occurred while saving the file: {e}"}),500)
             
 
+
+@app.route("/files/<int:id>/raw",methods=["GET"]) 
+def get_image(id:int):
+    
+    record = UploadedFile.query.get_or_404(id)
+    if record is None:
+        return jsonify({"error": "not_found", "message": "File not found."}), 404
+    
+    file_path = os.path.join(FOLDER_NAME,record.saved_name)
+    if not os.path.exists(file_path):
+        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."},404)
+    
+    try:
+        return send_from_directory(FOLDER_NAME, record.saved_name, as_attachment=False)
+    except:
+        return jsonify({"error": "server_error", "message": "Could not read the file."}), 500
         
+    
+    
+    
                 
         
 
