@@ -12,6 +12,7 @@ def hello():
 @app.route("/upload",methods=["POST","GET"])
 def upload_check():
     
+     
     if request.method == "POST":
         if 'file' not in request.files:
             return "please upload a file"
@@ -20,10 +21,28 @@ def upload_check():
             if uploaded_file.filename == "":
                 return "please upload a proper file"
             else:
+                # check the content type
                 mime = uploaded_file.mimetype
                 if mime not in ALLOWED_MIMES:
                     return "file type is not allowed"
-                return "ok file"
+        
+                # move pointer to the end of the file
+                uploaded_file.seek(0, 2)
+
+                # get size in bytes
+                file_size = uploaded_file.tell()
+
+                # reset pointer back to start
+                uploaded_file.seek(0)
+
+                # check if file is bigger than 5 MB
+                if file_size > 5 * 1024 * 1024:   
+                    return "file is too large"
+                
+                
+            
+
+        
                 
                     
                 
