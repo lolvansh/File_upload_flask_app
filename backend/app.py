@@ -116,12 +116,13 @@ def upload_check():
 def get_image(id:int):
     
     record = UploadedFile.query.get_or_404(id)
+    print(record)
     if record is None:
         return jsonify({"error": "not_found", "message": "File not found."}), 404
     
     file_path = os.path.join(FOLDER_NAME,record.saved_name)
     if not os.path.exists(file_path):
-        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."}),404
+        return jsonify({"error":"not_found_on_disk", "message": "File record exists but file is missing."}),404
     
     try:
         return send_from_directory(FOLDER_NAME, record.saved_name, as_attachment=False)
@@ -147,7 +148,41 @@ def delete_image(id:int):
             return jsonify({"message": "deleted","id": record.id})
         except Exception as e:
             return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500               
+
+
+@app.route("/files",methods=["GET"])
+def get_files():
+    
+    # pagination
+    try:
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit",50))
+        if page < 1 or limit < 1 or limit > 200:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "invalid_params", "message": "page and limit must be positive integers; limit <= 200"}), 400
+    
+    query = UploadedFile.query.order_by(UploadedFile.upload_time.desc())
+    total = query.count()
+    items = query.offset((page-1)*limit).limit(limit).all()
+    files=[]
+    
+    for file in items:
+        files.append({
+            "id": file.id,
+            "name": file.original_name,
+            "size": file.size,
+            "uploaded_at": file.upload_time.isoformat() if file.upload_time else None
+        })
         
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "files": files
+    })
+    
+          
 
 if __name__ == "__main__":
     
