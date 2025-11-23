@@ -121,7 +121,7 @@ def get_image(id:int):
     
     file_path = os.path.join(FOLDER_NAME,record.saved_name)
     if not os.path.exists(file_path):
-        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."},404)
+        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."}),404
     
     try:
         return send_from_directory(FOLDER_NAME, record.saved_name, as_attachment=False)
@@ -130,8 +130,23 @@ def get_image(id:int):
         
     
     
-    
-                
+@app.route("/delete/<int:id>",methods=["DELETE"])   
+def delete_image(id:int):
+    record = UploadedFile.query.get_or_404(id)
+    file_path = os.path.join(FOLDER_NAME,record.saved_name)
+    if not os.path.exists(file_path):
+        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."}),404
+    else:
+        try:
+            os.remove(file_path)         
+        except Exception as e:
+            return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500
+        try:
+            db.session.delete(record)
+            db.session.commit()
+            return jsonify({"message": "deleted","id": record.id})
+        except Exception as e:
+            return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500               
         
 
 if __name__ == "__main__":
