@@ -4,9 +4,11 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 app = Flask(__name__)
 
+CORS(app)
 
 FOLDER_NAME = "uploads" 
 
