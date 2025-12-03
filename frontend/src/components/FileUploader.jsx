@@ -2,7 +2,7 @@ import React, {useState} from "react";
 
 
 
-function FileUploader(){
+function FileUploader(props){
     const [selectedFile, setSelectedFile] = useState(null)
     const [status, setStatus] = useState(null)
 
@@ -33,6 +33,10 @@ function FileUploader(){
 
             if (response.ok){
                 setStatus("Success! File Uploaded")
+                if (props.onUploadSuccess){
+                    props.onUploadSuccess();
+                }
+                
             } else{
                 const errorData = await response.json();
                 
