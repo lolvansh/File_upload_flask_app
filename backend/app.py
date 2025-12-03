@@ -58,10 +58,12 @@ def upload_check():
             else:
                 # check the content type
                 mime = uploaded_file.mimetype
+                print(f"DEBUG: Uploaded file mime type is: {mime}")
                 if mime not in ALLOWED_MIMES:
-                    return make_response(jsonify({ "error": "unsupported_media_type", 
-                    "message": "File type is not allowed." 
-                    },415))
+                    return jsonify({ 
+                        "error": "unsupported_media_type", 
+                        "message": "File type is not allowed." 
+                    }), 415
         
                 # move pointer to the end of the file
                 uploaded_file.seek(0, 2)
@@ -192,5 +194,5 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         
-    app.run(debug=True)
+    app.run(debug=True, host="127.0.0.1", port=5000)
 
