@@ -27,11 +27,35 @@ function Gallery(props) {
                 }
             };
 
-            
             fetchImages();
 
         }, [page, props.refreshTrigger]);
 
+
+    
+    const handleDelete = async (id) => {
+        
+            // 1. Confirm with the user
+            if (!window.confirm("Are you sure?")) return;
+
+            try {
+                // 2. Tell Backend to delete
+                const response = await fetch(`/api/delete/${id}`, {
+                    method: "DELETE" 
+                });
+
+                if (response.ok) {
+                    // 3. THE TRICK: Update the screen IMMEDIATELY
+                    // We filter the list to keep everything EXCEPT the one we deleted.
+                    // We do NOT need to fetch from the server again.
+                    setImgaes(currentImages => currentImages.filter(img => img.id !== id));
+                } else {
+                    alert("Failed to delete");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        };
 
     return (
         <div className="gallery-container">
@@ -52,6 +76,12 @@ function Gallery(props) {
                             
                             {/* 2. Display the Name */}
                             <p>{file.name}</p>
+                        <button 
+                            onClick={()=> handleDelete(file.id)}
+                            style={{ backgroundColor: "red", color: "white", cursor: "pointer" }}
+                        >
+                            Delete
+                        </button>
                         </div>
                     ))}
                     
