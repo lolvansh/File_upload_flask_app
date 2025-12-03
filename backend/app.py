@@ -41,7 +41,7 @@ def hello():
     return "hello"
 
 
-@app.route("/upload",methods=["POST","GET"])
+@app.route("/api/upload",methods=["POST","GET"])
 def upload_check():
     if request.method == "POST":
         if 'file' not in request.files:
@@ -114,7 +114,7 @@ def upload_check():
             
 
 
-@app.route("/files/<int:id>/raw",methods=["GET"]) 
+@app.route("/api/files/<int:id>/raw",methods=["GET"]) 
 def get_image(id:int):
     
     record = UploadedFile.query.get_or_404(id)
@@ -133,7 +133,7 @@ def get_image(id:int):
         
     
     
-@app.route("/delete/<int:id>",methods=["DELETE"])   
+@app.route("/api/delete/<int:id>",methods=["DELETE"])   
 def delete_image(id:int):
     record = UploadedFile.query.get_or_404(id)
     file_path = os.path.join(FOLDER_NAME,record.saved_name)
@@ -152,7 +152,7 @@ def delete_image(id:int):
             return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500               
 
 
-@app.route("/files",methods=["GET"])
+@app.route("/api/files",methods=["GET"])
 def get_files():
     
     # pagination
