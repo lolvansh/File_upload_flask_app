@@ -85,7 +85,9 @@ def register():
     
 
 @app.route("/api/upload",methods=["POST","GET"])
+@jwt_required()
 def upload_check():
+    current_user_id = get_jwt_identity()
     if request.method == "POST":
         if 'file' not in request.files:
             return make_response(jsonify({ "error": "file_missing", 
@@ -137,7 +139,8 @@ def upload_check():
                         saved_name=final_name,
                         original_name=uploaded_file.filename,
                         mimetype=mime,
-                        size=file_size
+                        size=file_size,
+                        user_id=current_user_id
                     )
                     
                     db.session.add(record)
