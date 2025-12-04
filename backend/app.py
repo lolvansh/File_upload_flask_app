@@ -158,7 +158,24 @@ def upload_check():
                                                   "message":f"An error occurred while saving the file: {e}"}),500)
             
 
-
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data.get("userrname")
+    password = data.get("password")
+    
+    user = User.query.filter_by(username=username).first()
+    
+    if user and bcrypt.check_password_hash(user.password, password):
+        
+        access_token = create_access_token(identity=str(user.id))
+        return jsonify({
+            "message":"Login success",
+            "token": access_token,
+            "username": user.username
+        }), 200
+    else:
+        return jsonify({"message": "Invalid username or password"}), 401
 
 
 
