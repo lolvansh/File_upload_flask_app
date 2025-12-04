@@ -221,8 +221,9 @@ def delete_image(id:int):
 
 
 @app.route("/api/files",methods=["GET"])
+@jwt_required()
 def get_files():
-    
+    current_user_id = get_jwt_identity()
     # pagination
     try:
         page = int(request.args.get("page", 1))
@@ -232,7 +233,7 @@ def get_files():
     except ValueError:
         return jsonify({"error": "invalid_params", "message": "page and limit must be positive integers; limit <= 200"}), 400
     
-    query = UploadedFile.query.order_by(UploadedFile.upload_time.desc())
+    query = UploadedFile.query.filter_by(user_id=current_user_id).order_by(UploadedFile.upload_time.desc())
     total = query.count()
     items = query.offset((page-1)*limit).limit(limit).all()
     files=[]
