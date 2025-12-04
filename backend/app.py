@@ -58,8 +58,31 @@ ALLOWED_MIMES = {"image/png", "image/jpeg"}
 def hello():
     return "hello"
 
-
-
+@app.route("/api/register", methods=["POST"])
+def register():
+    # we first get the data from the request json body
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+    
+    if not username or not password:
+        return jsonify({"message":"Username and Password are required"}),400
+    
+    existing_user = User.query.filter_by(username=username).first()
+    if existing_user:
+        return jsonify({"message":"Username already taken"}),409
+    
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    new_user = User(username=username, password=hashed_password)
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({"message": "User created successfully"}),201
+    except Exception as e:
+        return jsonify({"message":"Database error", "error": str(e)}),500
+    
+    
 
 @app.route("/api/upload",methods=["POST","GET"])
 def upload_check():
@@ -134,6 +157,9 @@ def upload_check():
                     return make_response(jsonify({"error":"internal_server_error",
                                                   "message":f"An error occurred while saving the file: {e}"}),500)
             
+
+
+
 
 
 @app.route("/api/files/<int:id>/raw",methods=["GET"]) 
