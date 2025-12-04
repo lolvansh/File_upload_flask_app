@@ -3,6 +3,8 @@ import Gallery from "./components/Gallery";
 import { useState } from "react";
 import { Toaster } from 'react-hot-toast';
 
+
+
 function App(){
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -10,9 +12,13 @@ function App(){
     setRefreshKey(prev => prev + 1);
   };
 
+  
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <Toaster position="top-right" reverseOrder={false} 
+
+
+        <div className="relative min-h-screen w-full bg-white selection:bg-sky-100 text-slate-900">
+          
+       <Toaster position="top-right" reverseOrder={false} 
                 gutter={8}
                 toastOptions={{
                   duration: 4000,
@@ -52,19 +58,41 @@ function App(){
                   }
                 }}
                 
-                />
+                /> 
+      
 
-      <div className="max-w-4xl mx-auto space-y-8">
+      {/* 3. THE DOT GRID BACKGROUND (Fixed position so it doesn't scroll away) */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+      </div>
 
-        <h1 className="text=3xl font-bold text-center text-gray-800">
-          Image Keep
-        </h1>
+      {/* 4. THE CONTENT (z-10 puts this ON TOP of the background) */}
+      <div className="relative z-10 px-6 pt-14 pb-20">
+        
+        {/* HERO TITLE */}
+        <div className="max-w-3xl mx-auto text-center mb-12">
+            
+            <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl text-slate-900">
+                Image <span className="text-sky-600">Keep</span>
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-slate-600">
+                Your personal secure cloud gallery. Upload, manage, and organize your memories with ease.
+            </p>
+        </div>
 
-        <FileUploader onUploadSuccess={handleUploadSuccess} />
+        {/* COMPONENT CONTAINER */}
+        <div className="max-w-5xl mx-auto space-y-12">
 
-        <h3 className="border-grey-300" />
+            {/* Glassmorphism Card for Uploader */}
+                <FileUploader onUploadSuccess={handleUploadSuccess} />
+            
 
-        <Gallery refreshTrigger={refreshKey} />
+            {/* Glassmorphism Card for Gallery */}
+            <div className="backdrop-blur-sm rounded-2xl border border-white/50 shadow-sky-100/50">
+                <Gallery refreshTrigger={refreshKey} />
+            </div>
+
+        </div>
       </div>
     </div>
   )
