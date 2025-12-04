@@ -177,7 +177,7 @@ def get_files():
             "name": file.original_name,
             "size": file.size,
             "uploaded_at": file.upload_time.isoformat() if file.upload_time else None,
-            "url": f"/files/{file.id}/raw",
+            "url": f"/api/files/{file.id}/raw",
         })
         
     return jsonify({
