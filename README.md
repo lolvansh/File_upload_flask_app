@@ -1,4 +1,4 @@
-# Image Keep 📸
+# Image Keep 
 
 A modern, full-stack file management system built to securely upload, view, and manage images. Features a responsive glassmorphism UI, real-time toast notifications, and optimistic UI updates.
 
