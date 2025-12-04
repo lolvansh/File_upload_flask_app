@@ -1,10 +1,11 @@
-import React, {useState} from "react";
+import React, {useState, useRef} from "react";
 import toast from "react-hot-toast";
 
 
 function FileUploader({ onUploadSuccess, token}){
     const [selectedFile, setSelectedFile] = useState(null)
     const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     const handleFileSelect = (event) =>{
         const file = event.target.files[0];
@@ -41,11 +42,15 @@ function FileUploader({ onUploadSuccess, token}){
                 if (onUploadSuccess){
                     onUploadSuccess();
                 }
+                setSelectedFile(null)
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = ""; 
+                }
                 
             } else{
                 const errorData = await response.json();
-                
                 toast.error(`Error:`, errorData)
+                setSelectedFile(null)
             }
         }
         catch (error){
@@ -66,6 +71,7 @@ function FileUploader({ onUploadSuccess, token}){
                     <span className="sr-only">Choose a Image</span>
                     <input 
                         type="file"
+                        ref={fileInputRef}
                         onChange={handleFileSelect}
                         accept="image/png , image/jpeg"
                         className="block w-full text-sm text-slate-500

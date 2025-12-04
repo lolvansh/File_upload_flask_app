@@ -110,9 +110,9 @@ function App(){
                 
                     <FileUploader onUploadSuccess={handleUploadSuccess} token={token} />
                 
-                <div className="backdrop-blur-sm bg-white/40 rounded-2xl border border-white/50 shadow-xl shadow-sky-100/50 p-6 md:p-8">
+                
                     <Gallery refreshTrigger={refreshKey} token={token} />
-                </div>
+                
             </div>
         )}
       </div>
