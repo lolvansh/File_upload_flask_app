@@ -41,7 +41,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     
-    files = db.relationship('UploadedFile', backred='owner', lazy=True)
+    files = db.relationship('UploadedFile', backref='owner', lazy=True)
 
 class UploadedFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,7 +50,7 @@ class UploadedFile(db.Model):
     mimetype = db.Column(db.String(100), nullable=False)
     size = db.Column(db.Integer, nullable=False)
     upload_time = db.Column(db.DateTime, default= datetime.utcnow)
-    user_id = db.Column(db.Integer, db.Foreignkey('user.id'),nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     
 ALLOWED_MIMES = {"image/png", "image/jpeg"}
@@ -62,7 +62,7 @@ def hello():
 def register():
     # we first get the data from the request json body
     data = request.get_json()
-    username = data.get("username")
+    username = data.get("username") 
     password = data.get("password")
     
     if not username or not password:
@@ -161,7 +161,7 @@ def upload_check():
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
-    username = data.get("userrname")
+    username = data.get("username")
     password = data.get("password")
     
     user = User.query.filter_by(username=username).first()
