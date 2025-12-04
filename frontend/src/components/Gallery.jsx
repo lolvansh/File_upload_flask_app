@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 import toast from "react-hot-toast";
 
-function Gallery(props) {
+function Gallery({ refreshTrigger, token }) {
     const [images, setImgaes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -10,9 +10,15 @@ function Gallery(props) {
     useEffect(() => {
             
             const fetchImages = async () => {
+                if (!token) return;
                 try {
                     // Use 'page' directly from state here
-                    const response = await fetch(`/api/files?page=${page}&limit=5`)
+                    const response = await fetch(`/api/files?page=${page}&limit=6`, {
+                    // 2. FIX: Add the Authorization Header
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                     if (response.ok) {
                         let data = await response.json()
                         setImgaes(data.files)
@@ -29,7 +35,7 @@ function Gallery(props) {
 
             fetchImages();
 
-        }, [page, props.refreshTrigger]);
+        }, [page,refreshTrigger,token]);
 
 
     
