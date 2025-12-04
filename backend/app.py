@@ -5,10 +5,21 @@ import os
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+
+
+
+
 
 app = Flask(__name__)
 
 CORS(app)
+
+
+app.config['JWT_SECRET_KEY'] = 'super-secret-key-change-this-later'
+bcrypt = Bcrypt(app)
+jwt = JWTManager(app)
 
 FOLDER_NAME = "uploads" 
 
@@ -25,6 +36,13 @@ except Exception as e:
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
 
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    
+    files = db.relationship('UploadedFile', backred='owner', lazy=True)
+
 class UploadedFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     saved_name = db.Column(db.String(100), nullable=False)
@@ -32,13 +50,15 @@ class UploadedFile(db.Model):
     mimetype = db.Column(db.String(100), nullable=False)
     size = db.Column(db.Integer, nullable=False)
     upload_time = db.Column(db.DateTime, default= datetime.utcnow)
-
+    user_id = db.Column(db.Integer, db.Foreignkey('user.id'),nullable=False)
 
     
 ALLOWED_MIMES = {"image/png", "image/jpeg"}
 @app.route("/")
 def hello():
     return "hello"
+
+
 
 
 @app.route("/api/upload",methods=["POST","GET"])
