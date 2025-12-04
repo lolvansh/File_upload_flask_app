@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import toast from "react-hot-toast";
 
 
-function FileUploader(props){
+function FileUploader({ onUploadSuccess, token}){
     const [selectedFile, setSelectedFile] = useState(null)
     const [isUploading, setIsUploading] = useState(false);
 
@@ -26,18 +26,20 @@ function FileUploader(props){
 
         try{
             const response = await fetch("/api/upload",
-                {
-                    method: "POST",
-                    body: formData
-                }
+            {method: "POST",
+                    // 2. THIS IS THE MISSING PART causing the 401 error:
+            headers: {
+                "Authorization": `Bearer ${token}` 
+            },
+            body: formData,}
             );
 
             toast.dismiss(loadingToastId)
 
             if (response.ok){
                 toast.success("File uploaded successfully")
-                if (props.onUploadSuccess){
-                    props.onUploadSuccess();
+                if (onUploadSuccess){
+                    onUploadSuccess();
                 }
                 
             } else{

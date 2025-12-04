@@ -1,16 +1,35 @@
 import FileUploader from "./components/FileUploader";
 import Gallery from "./components/Gallery";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from 'react-hot-toast';
-
+import Login from "./components/Login";
 
 
 function App(){
   const [refreshKey, setRefreshKey] = useState(0);
+  const [token, setToken] = useState(null);
 
   const handleUploadSuccess = () =>{
     setRefreshKey(prev => prev + 1);
   };
+
+  useEffect(()=>{
+    const savedToken = localStorage.getItem("user_token")
+    if(savedToken){
+      setToken(savedToken)
+    }
+  },[]);
+
+  const handleLoginSuccess = (newToken) => {
+    setToken(newToken);
+    localStorage.setItem("user_token", newToken);
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem("user_token");
+  };
+
 
   
   return (
@@ -67,32 +86,35 @@ function App(){
       </div>
 
       {/* 4. THE CONTENT (z-10 puts this ON TOP of the background) */}
-      <div className="relative z-10 px-6 pt-14 pb-20">
-        
-        {/* HERO TITLE */}
-        <div className="max-w-3xl mx-auto text-center mb-12">
-            
-            <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl text-slate-900">
-                Image <span className="text-sky-600">Keep</span>
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-slate-600">
-                Your personal secure cloud gallery. Upload, manage, and organize your memories with ease.
-            </p>
-        </div>
-
-        {/* COMPONENT CONTAINER */}
-        <div className="max-w-5xl mx-auto space-y-12">
-
-            {/* Glassmorphism Card for Uploader */}
-                <FileUploader onUploadSuccess={handleUploadSuccess} />
-            
-
-            {/* Glassmorphism Card for Gallery */}
-            <div className="backdrop-blur-sm rounded-2xl border border-white/50 shadow-sky-100/50">
-                <Gallery refreshTrigger={refreshKey} />
+<div className="relative z-10 px-6 pt-10 pb-20 ">
+        <div className="max-w-5xl mx-auto flex justify-between items-center mb-12">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                    Image <span className="text-sky-600">Keep</span>
+                </h1>
             </div>
-
+            {token && (
+                <button 
+                    onClick={handleLogout}
+                    className="text-sm font-medium text-slate-500 hover:text-red-500 transition-colors"
+                >
+                    Sign Out
+                </button>
+            )}
         </div>
+
+        {!token ? (
+            <Login onLogin={handleLoginSuccess} />
+        ) : (
+            <div className="max-w-5xl mx-auto space-y-12">
+                
+                    <FileUploader onUploadSuccess={handleUploadSuccess} token={token} />
+                
+                <div className="backdrop-blur-sm bg-white/40 rounded-2xl border border-white/50 shadow-xl shadow-sky-100/50 p-6 md:p-8">
+                    <Gallery refreshTrigger={refreshKey} />
+                </div>
+            </div>
+        )}
       </div>
     </div>
   )
