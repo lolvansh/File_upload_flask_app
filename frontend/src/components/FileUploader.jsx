@@ -1,6 +1,6 @@
 import React, {useState, useRef} from "react";
 import toast from "react-hot-toast";
-
+import { API_URL } from "../config";
 
 function FileUploader({ onUploadSuccess, token}){
     const [selectedFile, setSelectedFile] = useState(null)
@@ -26,7 +26,7 @@ function FileUploader({ onUploadSuccess, token}){
         const loadingToastId = toast.loading("Uploading");
 
         try{
-            const response = await fetch("/api/upload",
+            const response = await fetch(`${API_URL}/api/upload`,
             {method: "POST",
                     // 2. THIS IS THE MISSING PART causing the 401 error:
             headers: {

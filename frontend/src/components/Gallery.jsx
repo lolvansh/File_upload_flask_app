@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from "react";
 import toast from "react-hot-toast";
+import { API_URL } from "../config";
 
 function Gallery({ refreshTrigger, token }) {
     const [images, setImgaes] = useState([]);
@@ -14,7 +15,7 @@ function Gallery({ refreshTrigger, token }) {
                 if (!token) return;
                 try {
                     // Use 'page' directly from state here
-                    const response = await fetch(`/api/files?page=${page}&limit=6`, {
+                    const response = await fetch(`${API_URL}/api/files?page=${page}&limit=6`, {
                     // 2. FIX: Add the Authorization Header
                     headers: {
                         "Authorization": `Bearer ${token}`
@@ -47,7 +48,7 @@ function Gallery({ refreshTrigger, token }) {
 
             try {
                 // 2. Tell Backend to delete
-                const response = await fetch(`/api/delete/${id}`, {
+                const response = await fetch(`${API_URL}/api/delete/${id}`, {
                     method: "DELETE" 
                 });
 

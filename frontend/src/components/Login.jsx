@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import { API_URL } from "../config";
 
 function Login({ onLogin }){
     const [isRegistering, setIsRegistering] = useState(false);
@@ -10,7 +11,9 @@ function Login({ onLogin }){
     const handleSubmit= async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        const endpoint = isRegistering ? "/api/register" : "/api/login";
+        const endpoint = isRegistering 
+            ? `${API_URL}/api/register` 
+            : `${API_URL}/api/login`;
 
         const loadingId = toast.loading(isRegistering ? "creating account..." : "Signing In...")
 
