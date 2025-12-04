@@ -7,10 +7,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from dotenv import load_dotenv
 
 
-
-
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -32,8 +32,13 @@ except Exception as e:
     print (f"error:{e}")
     
 
-# creating the database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    print(f"Database URL loaded successfully")
+else:
+    print("WARNING: DATABASE_URL not found in environment variables!")
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 db = SQLAlchemy(app)
 
 class User(db.Model):

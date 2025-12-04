@@ -8,3 +8,5 @@ uploads
 /instance
 instance
 database.db
+
+.env
