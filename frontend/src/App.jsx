@@ -108,10 +108,10 @@ function App(){
         ) : (
             <div className="max-w-5xl mx-auto space-y-12">
                 
-                    <FileUploader onUploadSuccess={handleUploadSuccess} token={token} />
+                    <FileUploader onUploadSuccess={handleUploadSuccess} token={token} onAuthError={handleLogout} />
                 
                 
-                    <Gallery refreshTrigger={refreshKey} token={token} />
+                    <Gallery refreshTrigger={refreshKey} token={token} onAuthError={handleLogout} />
                 
             </div>
         )}

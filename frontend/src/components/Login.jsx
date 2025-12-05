@@ -57,9 +57,6 @@ function Login({ onLogin }){
         e.preventDefault();
         setIsLoading(true);
 
-        const endpoint = isRegistering 
-            ? `${API_URL}/api/register` 
-            : `${API_URL}/api/login`;
 
         const loadingId = toast.loading(isRegistering ? "creating account..." : "Signing In...")
 
@@ -126,7 +123,7 @@ function Login({ onLogin }){
                     <button 
                         type="submit" 
                         disabled={isLoading}
-                        className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-lg shadow-sky-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-lg shadow-sky-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         {isLoading ? "Processing..." : (isRegistering ? "Sign Up" : "Sign In")}
                     </button>  
@@ -143,7 +140,7 @@ function Login({ onLogin }){
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={isLoading}
-                    className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-slate-700 font-medium border border-gray-300 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                    className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-slate-700 font-medium border border-gray-300 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 transform active:scale-95 cursor-pointer"
                 >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -158,7 +155,7 @@ function Login({ onLogin }){
                     {isRegistering ? "Already have an account?" : "Don't have an account?"}
                     <button 
                         onClick={() => setIsRegistering(!isRegistering)}
-                        className="ml-2 text-sky-600 font-bold hover:underline"
+                        className="ml-2 text-sky-600 font-bold hover:underline cursor-pointer"
                     >
                         {isRegistering ? "Log in" : "Sign up"}
                     </button>

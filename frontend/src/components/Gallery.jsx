@@ -2,7 +2,7 @@ import React, {useState, useEffect} from "react";
 import toast from "react-hot-toast";
 import { API_URL } from "../config";
 
-function Gallery({ refreshTrigger, token }) {
+function Gallery({ refreshTrigger, token, onAuthError }) {
     const [images, setImgaes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -29,9 +29,11 @@ function Gallery({ refreshTrigger, token }) {
                         setLoading(false)
                     } else {
                         console.log("error:", response.status)
+                        onAuthError()
                     }
                 } catch (error) {
                     console.error("Error", error)
+                    onAuthError()
                 }
             };
 

@@ -51,12 +51,14 @@ function FileUploader({ onUploadSuccess, token}){
                 const errorData = await response.json();
                 toast.error(`Error:`, errorData)
                 setSelectedFile(null)
+                
             }
         }
         catch (error){
             console.error("ERROR:", error);
             toast.dismiss(loadingToastId)
-            toast.error("Network Connection Failed") 
+            toast.error("Network Connection Failed")
+            
         }finally{
             setIsUploading(false)
         }
