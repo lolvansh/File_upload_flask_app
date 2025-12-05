@@ -10,3 +10,5 @@ instance
 database.db
 
 .env
+
+serviceAccountKey.json

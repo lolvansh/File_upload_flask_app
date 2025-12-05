@@ -42,33 +42,27 @@ function Gallery({ refreshTrigger, token }) {
 
     
     const handleDelete = async (id) => {
-        
-            // 1. Confirm with the user
-            if (!window.confirm("Are you sure?")) return;
+        if (!window.confirm("Are you sure?")) return;
 
-            try {
-                // 2. Tell Backend to delete
-                const response = await fetch(`${API_URL}/api/delete/${id}`, {
-                    method: "DELETE" 
-                });
-
-                if (response.ok) {
-                    // 3. THE TRICK: Update the screen IMMEDIATELY
-                    // We filter the list to keep everything EXCEPT the one we deleted.
-                    // We do NOT need to fetch from the server again.
-                    setImgaes(currentImages => currentImages.filter(img => img.id !== id));
-                    toast.success("Image deleted", {
-                    icon: "🗑️" // You can even add custom icons!
-                    });
-                } else {
-                    toast.error("Failed to delete image.");
-                    
+        try {
+            const response = await fetch(`${API_URL}/api/delete/${id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`  // <-- ADD THIS
                 }
-            } catch (error) {
-                console.error("Error:", error);
-                toast.error("Network error. Could not reach server.");
+            });
+
+            if (response.ok) {
+                setImgaes(currentImages => currentImages.filter(img => img.id !== id));
+                toast.success("Image deleted", { icon: "🗑️" });
+            } else {
+                toast.error("Failed to delete image.");
             }
-        };
+        } catch (error) {
+            console.error("Error:", error);
+            toast.error("Network error. Could not reach server.");
+        }
+    };
 
 return (
         <div className="w-full">
@@ -101,7 +95,7 @@ return (
                                 {/* IMAGE CONTAINER */}
                                 <div className="aspect-[4/3] overflow-hidden bg-gray-100 relative">
                                     <img 
-                                        src={file.url.startsWith('/api') ? file.url : `/api${file.url}`} 
+                                        src={file.url} 
                                         alt={file.name} 
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     />
@@ -156,7 +150,7 @@ return (
                         
                         <div className="flex gap-1">
                             {/* Simple visual indicator dots */}
-                            {[...Array(totalPages)].map((_, i) => (
+                            {totalPages > 0 && [...Array(totalPages)].map((_, i) => (
                                 <div key={i} className={`w-2 h-2 rounded-full ${page === i + 1 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
                             ))}
                         </div>
@@ -183,7 +177,7 @@ return (
                                 </svg>
                             </button>
                             <img 
-                                src={selectedImgae.url.startsWith('/api') ? selectedImgae.url : `/api${selectedImgae.url}`} 
+                                src={selectedImgae.url} 
                                 alt={selectedImgae.name}
                                 className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
                                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking the image itself
