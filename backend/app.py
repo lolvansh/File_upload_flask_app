@@ -22,10 +22,14 @@ CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DEL
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 
 if not firebase_admin._apps:
-    cred = credentials.Certificate("serviceAccountKey.json") 
+    secret_file_path = "/etc/secrets/serviceAccountKey.json"
+    if os.path.exists(secret_file_path):
+        cred = credentials.Certificate(secret_file_path)
+    else:
+        cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred, {
         'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET')  # <-- ADD THIS
-    })
+})
 
 BUCKET_NAME = os.environ.get('FIREBASE_STORAGE_BUCKET')
 
