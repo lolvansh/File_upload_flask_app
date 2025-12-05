@@ -1,35 +1,35 @@
+from importlib.resources import files
 from flask import Flask,request,jsonify,make_response,send_from_directory
 import mimetypes
 from werkzeug.utils import secure_filename
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 
+import firebase_admin
+from firebase_admin import credentials, auth, storage
+from functools import wraps
 
 load_dotenv()
 
 app = Flask(__name__)
 
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"]}})
 
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
-bcrypt = Bcrypt(app)
-jwt = JWTManager(app)
 
-FOLDER_NAME = "uploads" 
+if not firebase_admin._apps:
+    cred = credentials.Certificate("serviceAccountKey.json") 
+    firebase_admin.initialize_app(cred, {
+        'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET')  # <-- ADD THIS
+    })
 
-try:
-    os.mkdir(FOLDER_NAME)
-    print("created folder")
-except FileExistsError:
-    print("already exists")
-except Exception as e:
-    print (f"error:{e}")
+BUCKET_NAME = os.environ.get('FIREBASE_STORAGE_BUCKET')
+
+
     
 
 database_url = os.environ.get('DATABASE_URL')
@@ -43,9 +43,8 @@ db = SQLAlchemy(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     files = db.relationship('UploadedFile', backref='owner', lazy=True)
 
 class UploadedFile(db.Model):
@@ -61,203 +60,179 @@ class UploadedFile(db.Model):
 ALLOWED_MIMES = {"image/png", "image/jpeg"}
 @app.route("/")
 def hello():
-    return "hello"
+    return "backend is running"
 
-@app.route("/api/register", methods=["POST"])
-def register():
-    # we first get the data from the request json body
-    data = request.get_json()
-    username = data.get("username") 
-    password = data.get("password")
+def firebase_auth_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"message": "Missing Authorization Header"}), 401
+        
+        try:
+            token = auth_header.split(" ")[1]
+            decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)  # <-- ADD THIS
+            firebase_uid = decoded_token['uid']
+            current_user = User.query.filter_by(firebase_uid=firebase_uid).first()
+            
+            if not current_user:
+                return jsonify({"message": "User not found in local DB. Please login first."}), 401
+
+            request.current_user = current_user
+            
+        except Exception as e:
+            print(f"Auth Error: {e}")
+            return jsonify({"message": "Invalid or Expired Token"}), 401
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route("/api/verify-user", methods=["POST", "OPTIONS"])
+def verify_user():
+    if request.method == "OPTIONS":
+        return '', 200
     
-    if not username or not password:
-        return jsonify({"message":"Username and Password are required"}),400
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({"error": "Missing Authorization Header"}), 401
     
-    existing_user = User.query.filter_by(username=username).first()
-    if existing_user:
-        return jsonify({"message":"Username already taken"}),409
-    
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    
-    new_user = User(username=username, password=hashed_password)
     try:
-        db.session.add(new_user)
-        db.session.commit()
-        return jsonify({"message": "User created successfully"}),201
+        token = auth_header.split(" ")[1]
+        decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)  # <-- ADD THIS
+        firebase_uid = decoded_token['uid']
+        email = decoded_token.get('email')
+        
+        user = User.query.filter_by(firebase_uid=firebase_uid).first()
+        
+        if not user:
+            user = User(firebase_uid=firebase_uid, email=email)
+            db.session.add(user)
+            db.session.commit()
+        
+        return jsonify({"message": "User verified", "email": email}), 200
+        
     except Exception as e:
-        return jsonify({"message":"Database error", "error": str(e)}),500
-    
+        print(f"Verification Error: {e}")
+        return jsonify({"error": "Invalid token"}), 401
     
 
 @app.route("/api/upload",methods=["POST","GET"])
-@jwt_required()
-def upload_check():
-    current_user_id = get_jwt_identity()
-    if request.method == "POST":
-        if 'file' not in request.files:
-            return make_response(jsonify({ "error": "file_missing", 
-                    "message": "Please upload a file (field name: file)." 
-                    },400))
+@firebase_auth_required
+def upload_file():
+    # Access the user we found in the decorator
+    current_user = request.current_user
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "file_missing"}), 400
 
-        else:
-            uploaded_file = request.files['file']   
-            if uploaded_file.filename == "":
-                return make_response(jsonify({ "error": "no_file_selected", 
-                    "message": "No file was selected for upload." 
-                    },400))
-            else:
-                # check the content type
-                mime = uploaded_file.mimetype
-                print(f"DEBUG: Uploaded file mime type is: {mime}")
-                if mime not in ALLOWED_MIMES:
-                    return jsonify({ 
-                        "error": "unsupported_media_type", 
-                        "message": "File type is not allowed." 
-                    }), 415
+    file = request.files['file']
+    if file.filename == "":
+        return jsonify({"error": "no_file_selected"}), 400
+
+    mime = file.mimetype
+    if mime not in ALLOWED_MIMES:
+        return jsonify({"error": "file_type_not_allowed"}), 415
+
+    
+    file.seek(0, 2)  # Move to end of file
+    file_size = file.tell()  # Get position (= size)
+    file.seek(0)  # Reset to beginning for upload
+    # NOTE: This saves to LOCAL DISK (Ephemeral on Render)
+    # We will fix this in the next step to upload to Firebase Storage
+    safe_name = secure_filename(file.filename)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    storage_path = f"uploads/{current_user.id}/{timestamp}_{safe_name}"
+    
+    # Save to DB
+    try:
+        # 2. Upload to Firebase Storage
+        bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
+        blob = bucket.blob(storage_path)
         
-                # move pointer to the end of the file
-                uploaded_file.seek(0, 2)
+        # Upload directly from the file stream (no local save needed!)
+        blob.upload_from_file(file, content_type=file.mimetype)
 
-                # get size in bytes
-                file_size = uploaded_file.tell()
+        # 3. Save metadata to SQL DB
+        # We store the file size (blob.size is only available after reload, so we can skip or estimate)
+        new_file = UploadedFile(
+            saved_name=storage_path, # We save the CLOUD path
+            original_name=file.filename,
+            mimetype=file.mimetype,
+            size=file_size, # Optional: could get file.tell() before upload
+            user_id=current_user.id
+        )
+        
+        db.session.add(new_file)
+        db.session.commit()
 
-                # reset pointer back to start
-                uploaded_file.seek(0)
+        return jsonify({"message": "Uploaded successfully"}), 201
 
-                # check if file is bigger than 5 MB
-                if file_size > 5 * 1024 * 1024:   
-                    return make_response(jsonify({ "error": "payload_too_large", 
-                    "message": "File exceeds maximum allowed size." 
-                    },413))
-                
-                
-                # securre name
-                safe_name = secure_filename(uploaded_file.filename)
-                time_stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-                final_name = f"{time_stamp}_{safe_name}"
-                
-                try:
-                    save_path = os.path.join(FOLDER_NAME,final_name)
-                    uploaded_file.save(save_path)
-                    
-                    record = UploadedFile(
-                        saved_name=final_name,
-                        original_name=uploaded_file.filename,
-                        mimetype=mime,
-                        size=file_size,
-                        user_id=current_user_id
-                    )
-                    
-                    db.session.add(record)
-                    db.session.commit()
-                    
-                    return jsonify({
-                        "message": "file_uploaded",
-                        "file": {
-                            "saved_name": final_name,
-                            "original_name": uploaded_file.filename,
-                            "mimetype": mime,
-                            "size": file_size,
-                            "url": f"/files/{record.id}/raw"
-                        }
-                    }), 201
-                except Exception as e:
-                    return make_response(jsonify({"error":"internal_server_error",
-                                                  "message":f"An error occurred while saving the file: {e}"}),500)
+    except Exception as e:
+        print(f"Upload failed: {e}")
+        return jsonify({"error": "Cloud upload failed"}), 500     
+
+
+
+    
+    
+@app.route("/api/delete/<int:id>", methods=["DELETE"])
+@firebase_auth_required
+def delete_file(id):
+    current_user = request.current_user
+    file_record = UploadedFile.query.get_or_404(id)
+
+    # Security: Ensure user owns the file
+    if file_record.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        # 1. Delete from Cloud
+        bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
+        blob = bucket.blob(file_record.saved_name)
+        if blob.exists():
+            blob.delete()
+        
+        # 2. Delete from DB
+        db.session.delete(file_record)
+        db.session.commit()
+        
+        return jsonify({"message": "Deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": "Delete failed", "details": str(e)}), 500             
+
+
+@app.route("/api/files", methods=["GET"])
+@firebase_auth_required # <--- NEW DECORATOR
+def list_files():
+    current_user = request.current_user
+    
+    # Fetch files belonging to this specific user
+    files = UploadedFile.query.filter_by(user_id=current_user.id).order_by(UploadedFile.upload_time.desc()).all()
+    
+    bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
+    results = []
+    for f in files:
+        # 2. Generate a "Signed URL" for each file
+        # This URL works for 1 hour and allows access to the private file
+        blob = bucket.blob(f.saved_name)
+        
+        try:
+            # Generate link valid for 3600 seconds (1 hour)
+            url = blob.generate_signed_url(expiration=timedelta(hours=1))
             
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-    
-    user = User.query.filter_by(username=username).first()
-    
-    if user and bcrypt.check_password_hash(user.password, password):
-        
-        access_token = create_access_token(identity=str(user.id))
-        return jsonify({
-            "message":"Login success",
-            "token": access_token,
-            "username": user.username
-        }), 200
-    else:
-        return jsonify({"message": "Invalid username or password"}), 401
-
-
-
-@app.route("/api/files/<int:id>/raw",methods=["GET"]) 
-def get_image(id:int):
-    
-    record = UploadedFile.query.get_or_404(id)
-    print(record)
-    if record is None:
-        return jsonify({"error": "not_found", "message": "File not found."}), 404
-    
-    file_path = os.path.join(FOLDER_NAME,record.saved_name)
-    if not os.path.exists(file_path):
-        return jsonify({"error":"not_found_on_disk", "message": "File record exists but file is missing."}),404
-    
-    try:
-        return send_from_directory(FOLDER_NAME, record.saved_name, as_attachment=False)
-    except:
-        return jsonify({"error": "server_error", "message": "Could not read the file."}), 500
-        
-    
-    
-@app.route("/api/delete/<int:id>",methods=["DELETE"])   
-def delete_image(id:int):
-    record = UploadedFile.query.get_or_404(id)
-    file_path = os.path.join(FOLDER_NAME,record.saved_name)
-    if not os.path.exists(file_path):
-        return jsonify({"error":"not_found_on_disk0", "message": "File record exists but file is missing."}),404
-    else:
-        try:
-            os.remove(file_path)         
+            results.append({
+                "id": f.id,
+                "name": f.original_name,
+                "url": url, # Frontend puts this in <img src=...>
+                "type": f.mimetype,
+                "size": f.size,
+            })
         except Exception as e:
-            return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500
-        try:
-            db.session.delete(record)
-            db.session.commit()
-            return jsonify({"message": "deleted","id": record.id})
-        except Exception as e:
-            return jsonify({"error": "file_deletion_failed", "message": "Failed to delete file from disk."}), 500               
+            print(f"Error generating URL for {f.saved_name}: {e}")
 
-
-@app.route("/api/files",methods=["GET"])
-@jwt_required()
-def get_files():
-    current_user_id = get_jwt_identity()
-    # pagination
-    try:
-        page = int(request.args.get("page", 1))
-        limit = int(request.args.get("limit",50))
-        if page < 1 or limit < 1 or limit > 200:
-            raise ValueError
-    except ValueError:
-        return jsonify({"error": "invalid_params", "message": "page and limit must be positive integers; limit <= 200"}), 400
-    
-    query = UploadedFile.query.filter_by(user_id=current_user_id).order_by(UploadedFile.upload_time.desc())
-    total = query.count()
-    items = query.offset((page-1)*limit).limit(limit).all()
-    files=[]
-    
-    for file in items:
-        files.append({
-            "id": file.id,
-            "name": file.original_name,
-            "size": file.size,
-            "uploaded_at": file.upload_time.isoformat() if file.upload_time else None,
-            "url": f"/api/files/{file.id}/raw",
-        })
+    return jsonify({"files": results})
         
-    return jsonify({
-        "page": page,
-        "limit": limit,
-        "total": total,
-        "files": files
-    })
     
           
 
