@@ -39,7 +39,7 @@ function Gallery({ refreshTrigger, token, onAuthError }) {
 
             fetchImages();
 
-        }, [page,refreshTrigger,token]);
+        }, [page,refreshTrigger,token,onAuthError]);
 
 
     
