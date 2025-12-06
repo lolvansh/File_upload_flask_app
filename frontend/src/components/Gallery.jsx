@@ -124,11 +124,19 @@ return (
 
                                 {/* FILE INFO */}
                                 <div className="p-4 bg-blue-100">
-                                    <p className="text-gray-800 font-semibold truncate" title={file.name}>
-                                        {file.name}
+                                    <p className="text-gray-800 font-semibold truncate" title={file.title}>
+                                        {file.title}
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        {(file.size / 1024).toFixed(1)} KB
+                                    <p 
+                                        className="text-sm text-gray-600 mt-1 overflow-hidden" 
+                                        style={{
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 1,
+                                            WebkitBoxOrient: 'vertical'
+                                        }}
+                                        title={file.note}
+                                    >
+                                        {file.note}
                                     </p>
                                 </div>
                             </div>
@@ -186,8 +194,18 @@ return (
                                 className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
                                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking the image itself
                             />
-                            <div className="absolute bottom-5 left-0 right-0 text-center text-white/80">
-                                <p className="text-lg font-medium">{selectedImgae.name}</p>
+                           <div className="absolute bottom-5 left-0 right-0 text-center text-white/80 px-6">
+                                <p className="text-xl font-bold mb-2">{selectedImgae.title}</p>
+                                <p 
+                                    className="text-sm text-white/70 max-w-2xl mx-auto overflow-hidden"
+                                    style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 3,
+                                        WebkitBoxOrient: 'vertical'
+                                    }}
+                                >
+                                    {selectedImgae.note}
+                                </p>
                             </div>
                         </div>
                     )}
