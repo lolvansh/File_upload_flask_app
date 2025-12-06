@@ -28,7 +28,7 @@ if not firebase_admin._apps:
     else:
         cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred, {
-        'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET')  # <-- ADD THIS
+        'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET')  
 })
 
 BUCKET_NAME = os.environ.get('FIREBASE_STORAGE_BUCKET')
@@ -59,6 +59,8 @@ class UploadedFile(db.Model):
     size = db.Column(db.Integer, nullable=False)
     upload_time = db.Column(db.DateTime, default= datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=True)
+    note = db.Column(db.Text, nullable=True)
 
     
 ALLOWED_MIMES = {"image/png", "image/jpeg"}
@@ -126,6 +128,14 @@ def verify_user():
 def upload_file():
     # Access the user we found in the decorator
     current_user = request.current_user
+    title = request.form.get("title")
+    note = request.form.get("note")
+    
+    if not title or not title.strip():
+        return jsonify({"error": "title required"}), 400
+    
+    if not note or not note.strip():
+        return jsonify({"error": "note_required"}), 400
     
     if 'file' not in request.files:
         return jsonify({"error": "file_missing"}), 400
@@ -164,7 +174,9 @@ def upload_file():
             original_name=file.filename,
             mimetype=file.mimetype,
             size=file_size, # Optional: could get file.tell() before upload
-            user_id=current_user.id
+            user_id=current_user.id,
+            title=title.strip(),
+            note=note.strip(),
         )
         
         db.session.add(new_file)
@@ -231,6 +243,9 @@ def list_files():
                 "url": url, # Frontend puts this in <img src=...>
                 "type": f.mimetype,
                 "size": f.size,
+                "title": f.title,        # NEW
+                "note": f.note,          # NEW
+                "upload_time": f.upload_time.isoformat() 
             })
         except Exception as e:
             print(f"Error generating URL for {f.saved_name}: {e}")
@@ -238,8 +253,61 @@ def list_files():
     return jsonify({"files": results})
         
     
-          
+@app.route("/api/update/<int:id>", methods=["PUT"])
+@firebase_auth_required
+def update_entry(id):
+    current_user = request.current_user;
+    file_record = UploadedFile.query.get_or_404(id)
+    
+    if file_record.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    
+    if "title" in data:
+        if not data['title'] or not data['title'].strip():
+             return jsonify({"error": "title_cannot_be_empty"}), 400
+        file_record.title = data['title'].strip()
+         
+    if 'note' in data:
+        if not data['note'] or not data['note'].strip():
+            return jsonify({"error": "note_cannot_be_empty"}), 400
+        file_record.note = data['note'].strip()
+    try:
+        db.session.commit()
+        return jsonify({"message": "Diary entry updated successfully"}), 200
+    except Exception as e:
+        print(f"Update failed: {e}")
+        return jsonify({"error": "Update failed"}), 500
+    
+@app.route("/api/entry/<int:id>", methods=["GET"])
+@firebase_auth_required
+def get_entry(id):
+    current_user = request.current_user
+    file_record = UploadedFile.query.get_or_404(id)
 
+    if file_record.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
+        blob = bucket.blob(file_record.saved_name)
+        url = blob.generate_signed_url(expiration=timedelta(hours=1))
+        
+        return jsonify({
+            "id": file_record.id,
+            "name": file_record.original_name,
+            "url": url,
+            "type": file_record.mimetype,
+            "size": file_record.size,
+            "title": file_record.title,
+            "note": file_record.note,
+            "upload_time": file_record.upload_time.isoformat()
+        }), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "Failed to retrieve entry"}), 500
+    
 if __name__ == "__main__":
     
     with app.app_context():
