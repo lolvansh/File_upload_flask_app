@@ -92,6 +92,7 @@ function App(){
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                     Image <span className="text-sky-600">Keep</span>
                 </h1>
+
             </div>
             {token && (
                 <button 
