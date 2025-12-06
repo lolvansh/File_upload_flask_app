@@ -219,39 +219,64 @@ def delete_file(id):
 
 
 @app.route("/api/files", methods=["GET"])
-@firebase_auth_required # <--- NEW DECORATOR
+@firebase_auth_required
 def list_files():
-    current_user = request.current_user
-    
-    # Fetch files belonging to this specific user
-    files = UploadedFile.query.filter_by(user_id=current_user.id).order_by(UploadedFile.upload_time.desc()).all()
-    
-    bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
-    results = []
-    for f in files:
-        # 2. Generate a "Signed URL" for each file
-        # This URL works for 1 hour and allows access to the private file
-        blob = bucket.blob(f.saved_name)
+    try:
+        current_user = request.current_user
         
-        try:
-            # Generate link valid for 3600 seconds (1 hour)
-            url = blob.generate_signed_url(expiration=timedelta(hours=1))
+        # 1. Get Pagination Parameters from URL (sent by React)
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 6, type=int)
+        
+        # 2. Create the Base Query (Filter by User)
+        query = UploadedFile.query.filter_by(user_id=current_user.id).order_by(UploadedFile.upload_time.desc())
+        
+        # 3. Apply Pagination (This replaces .all())
+        # pagination object contains .items (current page) and .total (total count)
+        pagination = query.paginate(page=page, per_page=limit, error_out=False)
+        
+        files = pagination.items
+        total_files = pagination.total 
+
+        bucket = storage.bucket(os.environ.get('FIREBASE_STORAGE_BUCKET'))
+        results = []
+
+        for f in files:
+            blob = bucket.blob(f.saved_name)
+            url = ""
             
+            try:
+                # Generate link valid for 1 hour
+                url = blob.generate_signed_url(expiration=timedelta(hours=1))
+            except Exception as e:
+                print(f"Error generating URL for {f.saved_name}: {e}")
+                # Fallback: send empty string or a placeholder if signing fails
+                url = "" 
+
             results.append({
                 "id": f.id,
                 "name": f.original_name,
-                "url": url, # Frontend puts this in <img src=...>
+                "url": url,
                 "type": f.mimetype,
                 "size": f.size,
-                "title": f.title,        # NEW
-                "note": f.note,          # NEW
+                "title": getattr(f, 'title', ''), # Safely get title (prevents crash if column missing)
+                "note": getattr(f, 'note', ''),   # Safely get note
                 "upload_time": f.upload_time.isoformat() 
             })
-        except Exception as e:
-            print(f"Error generating URL for {f.saved_name}: {e}")
 
-    return jsonify({"files": results})
-        
+        # 4. Return the structure React expects
+        return jsonify({
+            "files": results,
+            "total": total_files,  # <--- React needs this for "Page 1 of X"
+            "limit": limit,
+            "page": page
+        })
+
+    except Exception as e:
+        # This print will show up in your Render Logs if it crashes
+        print(f"❌ API CRASHED: {e}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+    
     
 @app.route("/api/update/<int:id>", methods=["PUT"])
 @firebase_auth_required
@@ -312,6 +337,6 @@ if __name__ == "__main__":
     
     with app.app_context():
         db.create_all()
-        
+
     app.run(debug=True, host="127.0.0.1", port=5000)
 
