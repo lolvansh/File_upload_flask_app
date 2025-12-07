@@ -78,6 +78,7 @@ function FileUploader({ onUploadSuccess, token}){
                 setSelectedFile(null)
                 setTitle("")
                 setNote("")
+                setIsExpanded(false);
 
                 if (fileInputRef.current) {
                     fileInputRef.current.value = ""; 

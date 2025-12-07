@@ -87,12 +87,12 @@ return (
             ) : (
                 <>
                     {/* --- THE GRID --- */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-6">
                         {images.map((file) => (
                             <div 
                                 key={file.id} 
                                 onClick={() => setSelectedImage(file)}
-                                className="group relative bg-white rounded-xl shadow-sm border border-gray-50 overflow-hidden hover:shadow-md hover:-translate-y-1 transition-all duration-200"
+                                className="group relative  rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-1 transition-all duration-200"
                             >
                                 {/* IMAGE CONTAINER */}
                             
@@ -122,8 +122,8 @@ return (
                                     </div>
                                 </div>
 
-                                {/* FILE INFO */}
-                                <div className="p-4 bg-blue-100">
+                                {/* FILE INFO [#FEF3E2]" */}
+                                <div className="p-4 bg-[#D8D2C2]">
                                     <p className="text-gray-800 font-semibold truncate" title={file.title}>
                                         {file.title}
                                     </p>
@@ -177,38 +177,78 @@ return (
                     </div>
 
                     {/* lightbox */}
-                    { selectedImgae && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 transition-all duration-300"
-                        onClick={() => setSelectedImage(null)}>
-                            <button 
-                                className="absolute top-5 right-5 text-white/70 hover:text-white transition-colors"
-                                onClick={() => setSelectedImage(null)}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                            <img 
-                                src={selectedImgae.url} 
-                                alt={selectedImgae.name}
-                                className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
-                                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking the image itself
-                            />
-                           <div className="absolute bottom-5 left-0 right-0 text-center text-white/80 px-6">
-                                <p className="text-xl font-bold mb-2">{selectedImgae.title}</p>
-                                <p 
-                                    className="text-sm text-white/70 max-w-2xl mx-auto overflow-hidden"
-                                    style={{
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 3,
-                                        WebkitBoxOrient: 'vertical'
-                                    }}
-                                >
-                                    {selectedImgae.note}
-                                </p>
-                            </div>
-                        </div>
-                    )}
+
+{selectedImgae && (
+    <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm transition-opacity duration-300"
+        onClick={() => setSelectedImage(null)}
+    >
+        {/* Card Container 
+            - 'md:inline-block': On desktop, this behaves like a block fitting the image.
+            - 'md:pr-96': CRITICAL. We add right padding equal to the sidebar width (w-96) 
+               so the container reserves space for the text, even though the text is absolute.
+            - 'w-fit': Ensures the width hugs the image.
+        */}
+        <div
+            className="relative flex flex-col md:inline-block bg-stone-900 rounded-lg shadow-2xl overflow-hidden max-h-[90vh] max-w-[95vw] w-fit animate-in zoom-in-95 duration-200 border border-stone-800 md:pr-96"
+            onClick={(e) => e.stopPropagation()}
+        >
+            
+            {/* Close Button - Stays top right of the whole container */}
+            <button
+                className="absolute top-2 right-2 z-20 p-2 text-stone-400 hover:text-white transition-colors bg-black/40 hover:bg-black/60 rounded-full"
+                onClick={() => setSelectedImage(null)}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            {/* Image Section 
+                - Defines the height of the card on Desktop.
+                - 'block': Standard display to let it dictate dimensions.
+            */}
+            <div className="bg-black">
+                <img
+                    src={selectedImgae.url}
+                    alt={selectedImgae.name}
+                    className="block w-auto h-auto max-h-[50vh] md:max-h-[70vh] object-contain mx-auto"
+                />
+            </div>
+
+{/* Right Side: Content Sidebar
+    - Added 'flex-1' and 'min-h-0': 
+      These are CRITICAL for mobile. They tell the sidebar:
+      "If the card hits its max height, you must shrink to fit the remaining space."
+*/}
+<div className="flex flex-col w-90 md:w-96 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800/50 md:absolute md:right-0 md:top-0 md:bottom-0 flex-1 min-h-0">
+    
+    {/* Header Section */}
+    <div className="p-4 md:p-6 border-b border-stone-800 bg-stone-900/50 shrink-0">
+        <h2 className="text-lg md:text-xl font-bold text-amber-100 font-serif leading-tight pr-6">
+            {selectedImgae.title}
+        </h2>
+    </div>
+
+    {/* Scrollable Note Section 
+        - 'flex-1' fills the space between Header and Footer.
+        - 'overflow-y-auto' enables the scroll when the parent 'min-h-0' forces a height limit.
+    */}
+    <div className="flex-1 p-4 md:p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent">
+        <p className="text-stone-300 text-sm leading-relaxed whitespace-pre-line break-words">
+            {selectedImgae.note}
+        </p>
+    </div>
+    
+    {/* Footer */}
+    <div className="p-3 md:p-4 bg-stone-950/30 text-xs text-stone-500 border-t border-stone-800 text-center shrink-0">
+       {selectedImgae.name}
+    </div>
+</div>
+
+        </div>
+    </div>
+)}
 
                 </>
             )}
