@@ -12,11 +12,30 @@ import firebase_admin
 from firebase_admin import credentials, auth, storage
 from functools import wraps
 
+import smtplib
+from email.message import EmailMessage
+import redis
+import random
+
 load_dotenv()
 
 app = Flask(__name__)
 
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"]}})
+
+
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+try:
+    redis_client = redis.from_url(redis_url, decode_responses=True)
+    # Test connection immediately
+    redis_client.ping()
+    print("✅ Connected to Redis successfully")
+except redis.ConnectionError:
+    print("❌ WARNING: Could not connect to Redis. OTP features will fail.")
+
+
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
@@ -92,6 +111,74 @@ def firebase_auth_required(f):
             
         return f(*args, **kwargs)
     return decorated_function
+
+
+@app.route("/api/send-otp", methods=["POST"])
+def send_otp():
+    email = request.get_json("email")
+    if not email:
+        return jsonify({"error": "Email required"}),400
+    try:
+        auth.get_user_by_email(email)
+        return jsonify({"error": "Email already registered"}), 400
+    except:
+        pass
+    
+    code = str(random.randint(100000, 999999));
+    
+    try:
+        redis_client.setex(
+            name=f"otp:{email}",
+            time=300,
+            value=code
+        )
+    except Exception as e:
+        print(f"Redis error: {e}")
+        return jsonify({"error": "Database error"}),500
+    
+    try:
+        msg = EmailMessage()
+        msg.set_content(f"your vriffication code is: {code}\n\nValid for 5 minutes.")
+        msg["Subject"] = "Verification Code"
+        msg["From"] = SMTP_EMAIL
+        msg["TO"] = email
+        
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
+            smtp.send_message(msg)
+        
+        return jsonify({"message": "OTP sent successfully"}), 200
+    
+    except Exception as e:
+        print(f"Email error: {e}")
+        return jsonify({"error": "Failed to send email"}), 500
+    
+@app.route("/api/verify-otp", methods=["POST"])
+def verify_otp():
+    email = request.json.get("email")
+    user_otp = request.json.get("otp")
+    
+    if not email or not user_otp:
+        return jsonify({"error": "Email and OTP required"}),400
+    
+    stored_otp = redis_client.get(f"otp:{email}")
+    
+    if stored_otp:
+        stored_otp = stored_otp.decode('utf-8')
+    
+    if not stored_otp:
+        return jsonify({"error": "OTP expired or not found"}),400
+    
+    if stored_otp != user_otp:
+        return jsonify({"error": "Invalid OTP"}),400
+    
+    if stored_otp == user_otp:
+        redis_client.delete(f"otp:{email}")
+        return jsonify({"message": "OTP verified successfully"}), 200
+    else:
+        return jsonify({"error": "Invalid OTP"}),400
+    
+    
 
 
 @app.route("/api/verify-user", methods=["POST", "OPTIONS"])
