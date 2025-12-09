@@ -17,6 +17,9 @@ from email.message import EmailMessage
 import redis
 import random
 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -142,25 +145,37 @@ def send_otp():
         return jsonify({"error": "Database error"}), 500
     
     try:
-        msg = EmailMessage()
-        msg.set_content(f"Your verification code is: {code}\n\nValid for 5 minutes.")
-        msg["Subject"] = "Verification Code"
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = email  # FIX: Was "TO" (uppercase O), should be "To"
+        message = Mail(
+            from_email=os.environ.get('SMTP_EMAIL'), # Verify this email in SendGrid first!
+            to_emails=email,
+            subject='Your Verification Code',
+            html_content=f'<strong>Your verification code is: {code}</strong>'
+        )
+        sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         
-        with smtplib.SMTP_SSL("smtp.sendgrid.net", 465, timeout=10) as smtp:
-            smtp.set_debuglevel(1)  # Prints handshake details to your terminal
-            
-            # Username is ALWAYS "apikey"
-            smtp.login("apikey", os.environ.get('SENDGRID_API_KEY'))
-            
-            smtp.send_message(msg)
-
-        return jsonify({"message": "OTP sent successfully"}), 200
-    
+        response = sg.send(message)
+        print(response.status_code)
+        print(response.body)
+        print(response.headers)
+        if response.status_code >= 200 and response.status_code < 300:
+            print(f"✅ Email Sent! Status: {response.status_code}")
+            return jsonify({"message": "OTP sent successfully"}), 200
+        else:
+            print(f"⚠️ Email issue: {response.status_code}")
+            return jsonify({"error": "Failed to send email"}), 500
+        
     except Exception as e:
-        print(f"Email error: {e}")
+        # If the API returns an error message, print it for debugging
+        if hasattr(e, 'body'):
+            print(f"❌ SendGrid Error Body: {e.body}")
+        else:
+            print(f"❌ SendGrid Error: {e}")
+            
         return jsonify({"error": "Failed to send email"}), 500
+        
+        
+        
+
 
 
 @app.route("/api/verify-otp", methods=["POST"])
