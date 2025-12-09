@@ -6,7 +6,7 @@ import { auth, googleProvider } from "../firebase-config";
 import { 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
-    signInWithPopup 
+    signInWithPopup,
 } from "firebase/auth";
 
 function Login({ onLogin }){
@@ -14,6 +14,8 @@ function Login({ onLogin }){
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [otp, setOtp] = useState("");
+    const [otpSent,setOtpSent]= useState(false);
 
 
     const verifyTokenWithBackend = async (token) =>{
@@ -29,7 +31,7 @@ function Login({ onLogin }){
             const errordata = await response.json();
             throw new Error(errordata.error || "Backend verification failed")
         }
-        return await response.json
+        return await response.json()
     };
 
     const handleGoogleLogin = async () =>{
@@ -53,42 +55,93 @@ function Login({ onLogin }){
         }
     };
 
-    const handleSubmit= async (e) => {
-        e.preventDefault();
+    const handleLogin = async () => {
         setIsLoading(true);
-
-
-        const loadingId = toast.loading(isRegistering ? "creating account..." : "Signing In...")
+        const loadingId = toast.loading("Signing In...");
 
         try {
-            let userCredential;
-
-            if(isRegistering){
-                userCredential= await createUserWithEmailAndPassword(auth, email, password);
-            }else{
-                userCredential = await signInWithEmailAndPassword(auth, email, password)
-            }
-
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const token = await userCredential.user.getIdToken();
+            await verifyTokenWithBackend(token);
 
-            await verifyTokenWithBackend(token)
-
-            toast.success(isRegistering ? "Account Created!" : "Welcome Back!", {id: loadingId});
+            toast.success("Welcome Back!", {id: loadingId});
             onLogin(token);
         }catch(error){
             console.error(error);
             let msg = "Authentication Error";
             if (error.code === 'auth/wrong-password') msg = "Incorrect password";
             if (error.code === 'auth/user-not-found') msg = "No account with this email";
-            if (error.code === 'auth/email-already-in-use') msg = "Email already taken";
-            if (error.code === 'auth/weak-password'){
-                msg = "Password too weak"
+            if (error.code === 'auth/invalid-credential') msg = "Invalid email or password";
+            toast.error(msg, {id: loadingId});
+        }finally{
+            setIsLoading(false);
         }
-        toast.error(msg, {id: loadingId});
-    }finally{
-        setIsLoading(false)
     };
-}
+
+    const sentOtp = async () => {
+        setIsLoading(true);
+        const loadingId = toast.loading("Sending code...");
+        try{
+            const response = await fetch(`${API_URL}/api/send-otp`,{
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json(); // Fixed: was 'res'
+            if(!response.ok) throw new Error(data.error || "Failed");
+            toast.success("Code sent!", {id: loadingId});
+            setOtpSent(true);
+        }catch(error){
+            toast.error(error.message, {id: loadingId});
+        }finally{
+            setIsLoading(false);
+        }
+    }
+
+    const verifyAndRegister = async () =>{
+        setIsLoading(true)
+        const loadingId = toast.loading("Verifying...");
+        try {
+            // 1. Verify against Redis
+            const res = await fetch(`${API_URL}/api/verify-otp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp }) 
+            });
+            if(!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Invalid OTP");
+            }
+            toast.loading("Creating account...", {id: loadingId});
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const token = await userCredential.user.getIdToken();
+            await verifyTokenWithBackend(token);
+
+            toast.success("Account Created!", {id: loadingId});
+            onLogin(token);
+
+        }catch (error) {
+            console.error(error);
+            let msg = error.message;
+            if (error.code === 'auth/email-already-in-use') msg = "Email already taken";
+            toast.error(msg, {id: loadingId});
+        } finally {
+            setIsLoading(false);
+        }
+    }; 
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !isLoading) {
+            if (!isRegistering) {
+                handleLogin();
+            } else if (!otpSent) {
+                sentOtp();
+            } else {
+                verifyAndRegister();
+            }
+        }
+    };
+
 
     return(
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -98,13 +151,14 @@ function Login({ onLogin }){
                     {isRegistering ? "join your private cloud gallery" : "Enter your details to access files"}
                 </p>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-6" onKeyDown={handleKeyPress}>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
                         <input 
                             type="email"
                             value={email}
                             onChange={(e)=> setEmail(e.target.value)}
+                            disabled={otpSent}
                             className="w-full px-4 py-3 rounded-lg bg-white/50 border border-gray-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
                             placeholder="name@example.com"
                             required />
@@ -115,14 +169,43 @@ function Login({ onLogin }){
                             type="password" 
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            disabled={otpSent}
                             className="w-full px-4 py-3 rounded-lg bg-white/50 border border-gray-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
                             placeholder="••••••••"
                             required
                         />
                     </div>
+                    {/* OTP Input - Only show during OTP step */}
+                    {isRegistering && otpSent && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Verification Code</label>
+                            <input 
+                                type="text" 
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                                maxLength={6}
+                                className="w-full px-4 py-3 text-center text-2xl tracking-widest rounded-lg bg-white/50 border border-gray-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
+                                placeholder="******"
+                                autoFocus
+                                required
+                            />
+                            <div className="flex justify-end mt-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => setOtpSent(false)}
+                                    className="text-xs text-sky-600 hover:text-sky-800 font-medium cursor-pointer"
+                                >
+                                    Wrong email? Change it.
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <button 
                         type="submit" 
                         disabled={isLoading}
+                        onClick={isRegistering ? (otpSent ? verifyAndRegister : sentOtp) : handleLogin}
+                        
                         className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-lg shadow-sky-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         {isLoading ? "Processing..." : (isRegistering ? "Sign Up" : "Sign In")}
