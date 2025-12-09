@@ -115,16 +115,20 @@ def firebase_auth_required(f):
 
 @app.route("/api/send-otp", methods=["POST"])
 def send_otp():
-    email = request.get_json("email")
+    # FIX: Properly retrieve JSON data
+    data = request.get_json()
+    email = data.get("email") if data else None
+    
     if not email:
-        return jsonify({"error": "Email required"}),400
+        return jsonify({"error": "Email required"}), 400
+    
     try:
         auth.get_user_by_email(email)
         return jsonify({"error": "Email already registered"}), 400
     except:
         pass
     
-    code = str(random.randint(100000, 999999));
+    code = str(random.randint(100000, 999999))
     
     try:
         redis_client.setex(
@@ -134,14 +138,14 @@ def send_otp():
         )
     except Exception as e:
         print(f"Redis error: {e}")
-        return jsonify({"error": "Database error"}),500
+        return jsonify({"error": "Database error"}), 500
     
     try:
         msg = EmailMessage()
-        msg.set_content(f"your vriffication code is: {code}\n\nValid for 5 minutes.")
+        msg.set_content(f"Your verification code is: {code}\n\nValid for 5 minutes.")
         msg["Subject"] = "Verification Code"
         msg["From"] = SMTP_EMAIL
-        msg["TO"] = email
+        msg["To"] = email  # FIX: Was "TO" (uppercase O), should be "To"
         
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
@@ -152,33 +156,29 @@ def send_otp():
     except Exception as e:
         print(f"Email error: {e}")
         return jsonify({"error": "Failed to send email"}), 500
-    
+
+
 @app.route("/api/verify-otp", methods=["POST"])
 def verify_otp():
     email = request.json.get("email")
     user_otp = request.json.get("otp")
     
     if not email or not user_otp:
-        return jsonify({"error": "Email and OTP required"}),400
+        return jsonify({"error": "Email and OTP required"}), 400
     
+    # FIX: Redis already returns strings because decode_responses=True
+    # No need to decode again
     stored_otp = redis_client.get(f"otp:{email}")
     
-    if stored_otp:
-        stored_otp = stored_otp.decode('utf-8')
-    
     if not stored_otp:
-        return jsonify({"error": "OTP expired or not found"}),400
+        return jsonify({"error": "OTP expired or not found"}), 400
     
     if stored_otp != user_otp:
-        return jsonify({"error": "Invalid OTP"}),400
+        return jsonify({"error": "Invalid OTP"}), 400
     
-    if stored_otp == user_otp:
-        redis_client.delete(f"otp:{email}")
-        return jsonify({"message": "OTP verified successfully"}), 200
-    else:
-        return jsonify({"error": "Invalid OTP"}),400
-    
-    
+    # OTP is valid, delete it
+    redis_client.delete(f"otp:{email}")
+    return jsonify({"message": "OTP verified successfully"}), 200
 
 
 @app.route("/api/verify-user", methods=["POST", "OPTIONS"])
@@ -192,21 +192,30 @@ def verify_user():
     
     try:
         token = auth_header.split(" ")[1]
-        decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)  # <-- ADD THIS
+        decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)
         firebase_uid = decoded_token['uid']
         email = decoded_token.get('email')
         
-        user = User.query.filter_by(firebase_uid=firebase_uid).first()
+        # FIX: Check by firebase_uid OR email to handle edge cases
+        user = User.query.filter(
+            (User.firebase_uid == firebase_uid) | (User.email == email)
+        ).first()
         
         if not user:
+            # Create new user
             user = User(firebase_uid=firebase_uid, email=email)
             db.session.add(user)
+            db.session.commit()
+        elif user.firebase_uid != firebase_uid:
+            # Email exists but different firebase_uid - update it
+            user.firebase_uid = firebase_uid
             db.session.commit()
         
         return jsonify({"message": "User verified", "email": email}), 200
         
     except Exception as e:
         print(f"Verification Error: {e}")
+        db.session.rollback()  # Rollback on error
         return jsonify({"error": "Invalid token"}), 401
     
 
