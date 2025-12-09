@@ -23,8 +23,9 @@ app = Flask(__name__)
 
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "DELETE", "OPTIONS"]}})
 
-
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+redis_url = os.environ.get('REDIS_URL')
+if not redis_url:
+    redis_url = "redis://localhost:6379/0"
 try:
     redis_client = redis.from_url(redis_url, decode_responses=True)
     # Test connection immediately
@@ -147,10 +148,14 @@ def send_otp():
         msg["From"] = SMTP_EMAIL
         msg["To"] = email  # FIX: Was "TO" (uppercase O), should be "To"
         
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
+        with smtplib.SMTP_SSL("smtp.sendgrid.net", 465, timeout=10) as smtp:
+            smtp.set_debuglevel(1)  # Prints handshake details to your terminal
+            
+            # Username is ALWAYS "apikey"
+            smtp.login("apikey", os.environ.get('SENDGRID_API_KEY'))
+            
             smtp.send_message(msg)
-        
+
         return jsonify({"message": "OTP sent successfully"}), 200
     
     except Exception as e:
