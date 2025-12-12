@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Toaster } from 'react-hot-toast';
 import Home from "./components/Home";
 import Dashboard from "./components/Dashboard";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 
 
@@ -35,7 +36,8 @@ function App(){
   
   return (
 
-
+        <BrowserRouter>
+        
         <div className="relative min-h-screen w-full bg-white selection:bg-sky-100 text-slate-900">
           
        <Toaster position="top-right" reverseOrder={false} 
@@ -88,16 +90,32 @@ function App(){
 
       {/* 4. THE CONTENT (z-10 puts this ON TOP of the background) */}
       <div className="relative z-10 px-6 pt-10 pb-20">
+
+        <Routes>
+          <Route path="/"
+                  element={
+                    !token ? (
+                      <Home onLogin={handleLoginSuccess} />
+                    ):(
+                      <Navigate to="/dashboard" replace />
+                    )
+                  } />
+            
+          <Route path="/dashboard"
+                  element={
+                    token ? (
+                  <Dashboard token={token} onLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+                  } />
+        </Routes> 
         
-        {/* LOGIC SWITCH: Dashboard vs Home */}
-        {token ? (
-            <Dashboard token={token} onLogout={handleLogout} />
-        ) : (
-            <Home onLogin={handleLoginSuccess} />
-        )}
+
 
       </div>             
     </div>
+    </BrowserRouter>
   )
 }
 
