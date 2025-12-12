@@ -1,8 +1,9 @@
-import FileUploader from "./components/FileUploader";
-import Gallery from "./components/Gallery";
+
 import { useEffect, useState } from "react";
 import { Toaster } from 'react-hot-toast';
-import Login from "./components/Login";
+import Home from "./components/Home";
+import Dashboard from "./components/Dashboard";
+
 
 
 function App(){
@@ -86,37 +87,16 @@ function App(){
       </div>
 
       {/* 4. THE CONTENT (z-10 puts this ON TOP of the background) */}
-<div className="relative z-10 px-6 pt-10 pb-20 ">
-        <div className="max-w-5xl mx-auto flex justify-between items-center mb-12">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                    Image <span className="text-sky-600">Keep</span>
-                </h1>
-
-            </div>
-            {token && (
-                <button 
-                    onClick={handleLogout}
-                    className="text-sm font-medium text-slate-500 hover:text-red-500 transition-colors"
-                >
-                    Sign Out
-                </button>
-            )}
-        </div>
-
-        {!token ? (
-            <Login onLogin={handleLoginSuccess} />
+      <div className="relative z-10 px-6 pt-10 pb-20">
+        
+        {/* LOGIC SWITCH: Dashboard vs Home */}
+        {token ? (
+            <Dashboard token={token} onLogout={handleLogout} />
         ) : (
-            <div className="max-w-5xl mx-auto space-y-12">
-                
-                    <FileUploader onUploadSuccess={handleUploadSuccess} token={token} onAuthError={handleLogout} />
-                
-                
-                    <Gallery refreshTrigger={refreshKey} token={token} onAuthError={handleLogout} />
-                
-            </div>
+            <Home onLogin={handleLoginSuccess} />
         )}
-      </div>
+
+      </div>             
     </div>
   )
 }
