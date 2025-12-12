@@ -56,6 +56,7 @@ function Login({ onLogin }){
     };
 
     const handleLogin = async () => {
+        if (!validateInputs()) return;
         setIsLoading(true);
         const loadingId = toast.loading("Signing In...");
 
@@ -78,7 +79,20 @@ function Login({ onLogin }){
         }
     };
 
+    const validateInputs = () => {
+        if (!email.trim().toLowerCase().endsWith('@gmail.com')) {
+            toast.error("Only @gmail.com emails are allowed");
+            return false;
+        }
+        if (password.trim().length < 8) {
+            toast.error("Password must be at least 8 characters");
+            return false;
+        }
+        return true;
+    };
+
     const sentOtp = async () => {
+        if (!validateInputs()) return;
         setIsLoading(true);
         const loadingId = toast.loading("Sending code...");
         try{
