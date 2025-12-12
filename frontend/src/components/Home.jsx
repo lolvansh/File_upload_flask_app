@@ -20,8 +20,8 @@ function Home({ onLogin }) {
             <main className="flex-grow w-full">
 
                 {/* 1. HERO SECTION */}
-                <section className="max-w-7xl mx-auto px-6 py-12 lg:py-20">
-                    <div className="flex flex-col lg:flex-row items-center justify-center gap-20 w-full">
+                <section className="max-w-7xl mx-auto px-4 py-12 lg:py-20 sm:px-6 py-8 lg:py-20">
+                    <div className="flex flex-col lg:flex-row items-center justify-center gap-16 w-full">
                         
                         {/* LEFT SIDE (Desktop) / TOP (Mobile) */}
                         <div className="w-full lg:w-auto max-w-lg space-y-6 text-center lg:text-left animate-in slide-in-from-left-10 duration-700">

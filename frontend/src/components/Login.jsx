@@ -154,10 +154,10 @@ function Login({ onLogin }){
     const iconFocusColor = isRegistering ? "group-focus-within:text-rose-600" : "group-focus-within:text-orange-600";
 
     return (
-        <div className="flex items-center justify-center min-h-[500px] w-full p-4">
+        <div className="flex items-center justify-center min-h-[500px] w-full p-0 sm:p-4">
             
-            {/* CARD: White background, Warm Stone border */}
-            <div className="w-full max-w-[400px] bg-white border border-stone-200 shadow-xl rounded-2xl p-8 transition-all duration-300">
+
+            <div className="w-full max-w-[400px] bg-white border border-slate-200 shadow-xl rounded-2xl p-6 sm:p-8 transition-all duration-300">
                 
                 {/* HEADER */}
                 <div key={isRegistering ? "register" : "login"} className="text-center mb-8 animate-in fade-in slide-in-from-top-2 duration-300">
