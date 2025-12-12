@@ -7,7 +7,7 @@ function Home({ onLogin }) {
         <div className="min-h-screen flex flex-col w-full font-sans text-slate-900">
 
             {/* --- HEADER --- */}
-            <header className="w-full py-4 px-6 lg:px-12 flex justify-between items-center max-w-7xl mx-auto">
+            <header className="w-full px-6 lg:px-12 flex justify-between items-center max-w-7xl mx-auto">
                 <div className="text-2xl font-bold tracking-tight text-slate-900">
                     Image<span className="text-sky-600">Keep</span>
                 </div>
