@@ -1,15 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// PASTE YOUR CONFIG FROM STEP 1 HERE
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDToJmCbSg7eKGYRAXfW7nvIV66VOlrthA",
-  authDomain: "image-keep-storage.firebaseapp.com",
-  projectId: "image-keep-storage",
-  storageBucket: "image-keep-storage.firebasestorage.app",
-  messagingSenderId: "274777899696",
-  appId: "1:274777899696:web:239358bd502adc53b27175",
-  measurementId: "G-9ZVHWMB2TG"
+  apiKey: "AIzaSyCjHebIpK3vjoTgrrphSrnWVqdSMedXsw0",
+  authDomain: "image-keep.firebaseapp.com",
+  projectId: "image-keep",
+  storageBucket: "image-keep.firebasestorage.app",
+  messagingSenderId: "948298184512",
+  appId: "1:948298184512:web:598a59973fae74ddcb2ca5",
+  measurementId: "G-5JB4142ZX0"
 };
 
 // Initialize Firebase
