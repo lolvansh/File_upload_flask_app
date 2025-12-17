@@ -10,7 +10,7 @@ import {
 } from "firebase/auth";
 
 function Login({ onLogin }){
-    const [isRegistering, setIsRegistering] = useState(false);
+    const [isRegistering, setIsRegistering] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
